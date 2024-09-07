@@ -1,100 +1,54 @@
 import 'package:flutter/material.dart';
 
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
+import 'package:mm/besh.dart';
+import 'package:mm/bir.dart';
+import 'package:mm/ikki.dart';
+import 'package:mm/tort.dart';
+import 'package:mm/uch.dart';
+
 void main() {
-  runApp(MyApp());
+  runApp(MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: kkkk(),
+  ));
 }
 
-class MyApp extends StatelessWidget {
+class kkkk extends StatefulWidget {
+  const kkkk({super.key});
+
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: SearchPage(),
-    );
-  }
+  State<kkkk> createState() => _kkkkState();
 }
 
-class SearchPage extends StatefulWidget {
-  @override
-  _SearchPageState createState() => _SearchPageState();
-}
-
-class _SearchPageState extends State<SearchPage> {
-  final TextEditingController _controller = TextEditingController();
-  List<String> _filteredItems = [];
-
-  final List<String> _items = [
-    "Apple",
-    "ganana",
-    "Cherry",
-    "Date",
-    "Elderberry",
-    "Fig",
-    "Grape",
-    "Honeydew",
-    "Kiwi",
-    "Lemon",
-    "Mango",
-    "Mectarine",
-    "Orange",
-    "Papaya",
-    "Quince",
-    "Raspberry",
-    "Strawberry",
-    "Tomato",
-    "Ugli fruit",
-    "Vanilla",
-    "Watermelon",
-    "Xigua",
-    "Yellow Passion Fruit",
-    "Zucchini"
-  ];
-
-  void _performSearch(String query) {
+class _kkkkState extends State<kkkk> {
+  bool isDarkMode = false;
+  bool isLoading = true;
+  int select = 0;
+  List nav = [bir(), ikki(), uch(), tort(), besh()];
+  void kol(i) {
     setState(() {
-      _filteredItems = _items
-          .where((item) => item.toLowerCase().startsWith(query.toLowerCase()))
-          .toList();
+      select = i;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Text Search App'),
-        centerTitle: true,
+      bottomNavigationBar: CurvedNavigationBar(
+        backgroundColor: Colors.white,
+        buttonBackgroundColor: Colors.blue,
+        color: Colors.blue,
+        items: [
+          Icon(Icons.book),
+          Icon(Icons.hourglass_empty_sharp),
+          Icon(Icons.add),
+          Icon(Icons.signal_wifi_connected_no_internet_4_sharp),
+          Icon(Icons.photo_library),
+        ],
+        onTap: kol,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: <Widget>[
-            TextField(
-              controller: _controller,
-              onChanged: _performSearch,
-              decoration: InputDecoration(
-                hintText: 'Search for an item...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 20),
-            Expanded(
-              child: _filteredItems.isEmpty
-                  ? Text(
-                      'No items found',
-                      style: TextStyle(fontSize: 18, color: Colors.red),
-                    )
-                  : ListView.builder(
-                      itemCount: _filteredItems.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          title: Text(_filteredItems[index]),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
+      body: nav.elementAt(select),
     );
   }
 }
