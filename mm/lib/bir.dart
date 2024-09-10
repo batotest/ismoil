@@ -1,6 +1,18 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'dart:async'; // Timer uchun
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: bir(),
+    );
+  }
+}
 
 class bir extends StatefulWidget {
   @override
@@ -8,212 +20,120 @@ class bir extends StatefulWidget {
 }
 
 class _birState extends State<bir> {
-  List<Map<String, dynamic>> surahList = [];
-  bool isDarkMode = false;
-  bool isLoading = true; // Track loading state
+  final TextEditingController _firstController = TextEditingController();
+  final TextEditingController _secondController = TextEditingController();
 
-  // Fetch data in parallel using Future.wait for faster loading
-  void fetchData() async {
-    setState(() {
-      isLoading = true; // Show loading indicator
-    });
+  void _validateInputs() {
+    String firstInput = _firstController.text;
+    String secondInput = _secondController.text;
 
-    try {
-      // Run both requests in parallel
-      final responses = await Future.wait([
-        http.get(Uri.parse("https://api.alquran.cloud/v1/quran/uz.sodik")),
-        http.get(Uri.parse("https://api.alquran.cloud/v1/quran/ar.alafasy")),
-      ]);
-
-      final responseUzbek = responses[0];
-      final responseArabic = responses[1];
-
-      if (responseUzbek.statusCode == 200 && responseArabic.statusCode == 200) {
-        final jsonDataUzbek = json.decode(responseUzbek.body);
-        final jsonDataArabic = json.decode(responseArabic.body);
-
-        if (jsonDataUzbek != null && jsonDataArabic != null) {
-          List<dynamic> surahsUzbek = jsonDataUzbek['data']['surahs'];
-          List<dynamic> surahsArabic = jsonDataArabic['data']['surahs'];
-
-          for (int i = 0; i < surahsUzbek.length; i++) {
-            List<Map<String, dynamic>> ayahs = [];
-            for (int j = 0; j < surahsUzbek[i]['ayahs'].length; j++) {
-              ayahs.add({
-                "text": surahsUzbek[i]['ayahs'][j]['text'],
-                "text_ar": surahsArabic[i]['ayahs'][j]['text'],
-              });
-            }
-
-            surahList.add({
-              "number": surahsUzbek[i]['number'],
-              "name": surahsUzbek[i]['name'],
-              "englishName": surahsUzbek[i]['englishName'],
-              "ayahs": ayahs,
-            });
-          }
-
-          setState(() {
-            isLoading = false; // Data has been loaded, hide loading indicator
-          });
-        }
-      } else {
-        throw Exception("Failed to load data");
-      }
-    } catch (e) {
-      setState(() {
-        isLoading = false; // On error, stop loading
-      });
-      print("Error: $e");
+    if (firstInput == "Ismoiljon" && secondInput == "Kamalov") {
+      _showLoadingDialog();
+    } else {
+      _showErrorDialog();
     }
   }
 
-  void toggleTheme() {
-    setState(() {
-      isDarkMode = !isDarkMode;
-    });
+  void _showErrorDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Xato!"),
+          content: Text("Iltimos, to'g'ri ma'lumot kiriting."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    fetchData();
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Dialog yopilmasligi uchun
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text("Yuklanmoqda..."),
+            ],
+          ),
+        );
+      },
+    );
+
+    Timer(Duration(seconds: 5), () {
+      Navigator.of(context).pop(); // Dialogni yopish
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => SecondPage()),
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: isDarkMode ? Colors.black : Colors.white,
-        title: Text(
-          'Qur\'on Suralari (O\'zbek)',
-          style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: toggleTheme,
-          ),
-        ],
-      ),
-      backgroundColor: isDarkMode ? Colors.black : Colors.white,
-      body: isLoading
-          ? Center(
-              child: CircularProgressIndicator(), // Show loading indicator
-            )
-          : ListView.builder(
-              itemCount: surahList.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: Text(
-                    "${surahList[index]['number']}",
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  title: Text(
-                    "${surahList[index]['englishName']} (${surahList[index]['name']})",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => Nol(
-                          surahList[index],
-                          isDarkMode: isDarkMode,
-                          toggleTheme: toggleTheme,
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _firstController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+              ),
             ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _secondController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _validateInputs,
+              child: Text("Tasdiqlash"),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class Nol extends StatefulWidget {
-  final Map<String, dynamic> surah;
-  final bool isDarkMode;
-  final Function toggleTheme;
-
-  Nol(this.surah, {required this.isDarkMode, required this.toggleTheme});
-
-  @override
-  _NolState createState() => _NolState();
-}
-
-class _NolState extends State<Nol> {
-  bool showUzbek = false;
-
+class SecondPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: true,
-        backgroundColor: widget.isDarkMode ? Colors.black : Colors.white,
-        title: Text(
-          "${widget.surah['englishName']} (${widget.surah['name']})",
-          style: TextStyle(
-            color: widget.isDarkMode ? Colors.white : Colors.black,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue, Colors.purple],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-        centerTitle: true,
-      ),
-      backgroundColor: widget.isDarkMode ? Colors.black : Colors.white,
-      body: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    showUzbek = true;
-                  });
-                },
-                child: Text('Uzbek'),
-              ),
-              SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    showUzbek = false;
-                  });
-                },
-                child: Text('Arabic'),
-              ),
-            ],
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: widget.surah['ayahs'].length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
-                  child: Text(
-                    "Oyat ${index + 1}: ${showUzbek ? widget.surah['ayahs'][index]['text'] : widget.surah['ayahs'][index]['text_ar']}",
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: widget.isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                );
-              },
+        child: Center(
+          child: Text(
+            "Salom",
+            style: TextStyle(
+              fontSize: 40,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-        ],
+        ),
       ),
     );
   }
