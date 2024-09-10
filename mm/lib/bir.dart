@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:async'; // Timer uchun
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(MyApp());
@@ -20,31 +20,60 @@ class bir extends StatefulWidget {
 }
 
 class _birState extends State<bir> {
-  final TextEditingController _firstController = TextEditingController();
-  final TextEditingController _secondController = TextEditingController();
+  List<String> _names = []; // Bir nechta ism saqlash uchun ro'yxat
+  final TextEditingController _nameController = TextEditingController();
 
-  void _validateInputs() {
-    String firstInput = _firstController.text;
-    String secondInput = _secondController.text;
-
-    if (firstInput == "Ismoiljon" && secondInput == "Kamalov") {
-      _showLoadingDialog();
-    } else {
-      _showErrorDialog();
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadNames(); // Dastur ishga tushganda saqlangan ismlarni yuklash
   }
 
-  void _showErrorDialog() {
+  // Ismlarni saqlash
+  Future<void> _saveNames() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('savedNames', _names);
+  }
+
+  // Saqlangan ismlarni yuklash
+  Future<void> _loadNames() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _names = prefs.getStringList('savedNames') ?? []; // Saqlangan ismlar ro'yxatini yuklash
+    });
+  }
+
+  // Dialog orqali ism olish
+  void _showNameInputDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Xato!"),
-          content: Text("Iltimos, to'g'ri ma'lumot kiriting."),
+          title: Text("Ismingizni kiriting"),
+          content: TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              hintText: "Ism kiriting",
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Dialogni yopish
+              },
+              child: Text("Bekor qilish"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                String enteredName = _nameController.text;
+                if (enteredName.isNotEmpty) {
+                  setState(() {
+                    _names.add(enteredName); // Ismni ro'yxatga qo'shish
+                  });
+                  _saveNames(); // Yangilangan ismlar ro'yxatini saqlash
+                }
+                _nameController.clear(); // TextField-ni tozalash
+                Navigator.of(context).pop(); // Dialogni yopish
               },
               child: Text("OK"),
             ),
@@ -54,85 +83,45 @@ class _birState extends State<bir> {
     );
   }
 
-  void _showLoadingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false, // Dialog yopilmasligi uchun
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text("Yuklanmoqda..."),
-            ],
-          ),
-        );
-      },
-    );
-
-    Timer(Duration(seconds: 5), () {
-      Navigator.of(context).pop(); // Dialogni yopish
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => SecondPage()),
-      );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text("Ismni kiritish"),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _firstController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _names.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    padding: EdgeInsets.all(16),
+                    margin: EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      _names[index], // Ro'yxatdagi ismni ko'rsatish
+                      style: TextStyle(
+                        fontSize: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             SizedBox(height: 16),
-            TextField(
-              controller: _secondController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _validateInputs,
-              child: Text("Tasdiqlash"),
+            IconButton(
+              icon: Icon(Icons.add),
+              onPressed: _showNameInputDialog, // Dialogni ochish
+              iconSize: 40,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class SecondPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue, Colors.purple],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            "Salom",
-            style: TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
         ),
       ),
     );
