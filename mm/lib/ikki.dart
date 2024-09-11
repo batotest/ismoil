@@ -1,6 +1,20 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart'; // For DateFormat
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:ui'; // For BackdropFilter
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: ikki(),
+    );
+  }
+}
 
 class ikki extends StatefulWidget {
   @override
@@ -8,83 +22,211 @@ class ikki extends StatefulWidget {
 }
 
 class _ikkiState extends State<ikki> {
-  TextEditingController locationController = TextEditingController();
-  Map<String, dynamic>? prayerTimes;
-  bool isLoading = false;
+  Map<String, String> names = {}; // Store names with timestamps
+  TextEditingController _nameController = TextEditingController();
 
-  // Function to fetch prayer times based on location
-  Future<void> fetchPrayerTimes(String location) async {
+  @override
+  void initState() {
+    super.initState();
+    _loadNames();
+  }
+
+  Future<void> _loadNames() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      isLoading = true; // Show loading while fetching data
-    });
-
-    final url = 'https://api.aladhan.com/v1/timingsByAddress?address=$location';
-
-    try {
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        setState(() {
-          prayerTimes = jsonData['data']['timings'];
-        });
-      } else {
-        print("Failed to fetch data");
+      Map<String, String> loadedNames = {};
+      List<String>? savedNames = prefs.getStringList('names');
+      if (savedNames != null) {
+        for (var name in savedNames) {
+          var parts = name.split('|');
+          if (parts.length == 2) {
+            loadedNames[parts[0]] = parts[1];
+          }
+        }
       }
-    } catch (e) {
-      print("Error: $e");
-    } finally {
-      setState(() {
-        isLoading = false; // Hide loading after fetching data
-      });
-    }
+      names = loadedNames;
+    });
+  }
+
+  Future<void> _saveNames() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> savedNames =
+        names.entries.map((e) => '${e.key}|${e.value}').toList();
+    await prefs.setStringList('names', savedNames);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: true,
-        title: Text('Prayer Times'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // TextField to input city or country name
-            TextField(
-              controller: locationController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Enter city or country',
-              ),
-              onSubmitted: (value) {
-                if (value.isNotEmpty) {
-                  fetchPrayerTimes(
-                      value); // Fetch prayer times for input location
-                }
-              },
-            ),
-            SizedBox(height: 20),
-
-            // Show loading indicator while fetching data
-            if (isLoading) CircularProgressIndicator(),
-
-            // Display fetched prayer times
-            if (prayerTimes != null && !isLoading)
-              Expanded(
-                child: ListView(
-                  children: prayerTimes!.entries.map((entry) {
-                    return ListTile(
-                      title: Text("${entry.key}: ${entry.value}"),
-                    );
-                  }).toList(),
-                ),
-              ),
-          ],
+        floatingActionButton: FloatingActionButton(
+          onPressed: _showAddNameDialog,
+          child: Icon(Icons.add),
         ),
-      ),
+        body: Container(
+          height: double.infinity,
+          width: double.infinity,
+          decoration: BoxDecoration(
+              image: DecorationImage(
+                  image: AssetImage("assets/gul.jpg"), fit: BoxFit.cover)),
+          child: ListView.builder(
+            itemCount: names.length,
+            itemBuilder: (context, index) {
+              final name = names.keys.elementAt(index);
+              final timestamp = names[name]!;
+              return Container(
+                margin: EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Color.fromARGB(255, 255, 255, 255).withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      spreadRadius: 2,
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: ListTile(
+                  contentPadding: EdgeInsets.all(12.0),
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$name (Qushilgan sana :',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                      Text(
+                        '$timestamp',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit, color: Colors.black),
+                        onPressed: () => _showEditNameDialog(name),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete, color: Colors.black),
+                        onPressed: () => _removeName(name),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ));
+  }
+
+  void _showAddNameDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: AlertDialog(
+            backgroundColor: Colors.blue.withOpacity(0.5),
+            title:
+                Text('Add New Name', style: TextStyle(color: Colors.white)),
+            content: TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Enter name',
+                labelStyle: TextStyle(color: Colors.black),
+              ),
+              style: TextStyle(color: Colors.black),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Cancel', style: TextStyle(color: Colors.white)),
+              ),
+              TextButton(
+                onPressed: () {
+                  final newName = _nameController.text;
+                  if (newName.isNotEmpty) {
+                    DateTime now = DateTime.now();
+                    String formattedDate =
+                        DateFormat('yyyy-MM-dd HH:mm:ss.SSS').format(now);
+                    setState(() {
+                      names[newName] = formattedDate;
+                      _nameController.clear();
+                      _saveNames(); // Save the updated names
+                    });
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: Text('Add', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  void _showEditNameDialog(String oldName) {
+    _nameController.text = oldName;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+            child: AlertDialog(
+              backgroundColor: Color(0xFF4A148C).withOpacity(0.9),
+              title: Text('Edit Name', style: TextStyle(color: Colors.white)),
+              content: TextField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: 'Enter new name',
+                  labelStyle: TextStyle(color: Colors.white),
+                ),
+                style: TextStyle(color: Colors.white),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    final newName = _nameController.text;
+                    if (newName.isNotEmpty) {
+                      DateTime now = DateTime.now();
+                      String formattedDate =
+                          DateFormat('yyyy-MM-dd HH:mm:ss.SSS').format(now);
+                      setState(() {
+                        names.remove(oldName);
+                        names[newName] = formattedDate;
+                        _nameController.clear();
+                        _saveNames(); // Save the updated names
+                      });
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: Text('Save', style: TextStyle(color: Colors.white)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancel', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _removeName(String name) {
+    setState(() {
+      names.remove(name);
+      _saveNames(); // Save the updated names
+    });
   }
 }

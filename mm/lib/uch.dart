@@ -1,10 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  runApp(TasbihApp());
+  runApp(MaterialApp(
+    home: ikkki(),
+  ));
 }
 
-class TasbihApp extends StatelessWidget {
+class ikkki extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -20,111 +25,80 @@ class uch extends StatefulWidget {
 }
 
 class _uchState extends State<uch> {
-  int _counter = 0;
+  String usdRate = 'Loading...';
 
-  // Function to increment the counter
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadDollarRate();
   }
 
-  // Function to show the reset confirmation dialog in Uzbek
-  void _showResetDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Tasdiqlash'),
-          content: Text('Hisoblagichni noldan boshlashni xohlaysizmi?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              child: Text('Yo\'q'),
-            ),
-            TextButton(
-              onPressed: () {
-                _resetCounter();
-                Navigator.of(context).pop(); // Close the dialog after resetting
-              },
-              child: Text('Ha'),
-            ),
-          ],
-        );
-      },
-    );
+  Future<void> _loadDollarRate() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? savedRate = prefs.getString('usdRate');
+    
+    if (savedRate != null) {
+      setState(() {
+        usdRate = savedRate;
+      });
+    } else {
+      await fetchDollarRate();
+    }
   }
 
-  // Function to reset the counter
-  void _resetCounter() {
-    setState(() {
-      _counter = 0;
-    });
+  Future<void> fetchDollarRate() async {
+    var url = Uri.parse('https://cbu.uz/uz/arkhiv-kursov-valyut/json/');
+    var response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+
+      for (var currency in data) {
+        if (currency['Ccy'] == 'USD') {
+          setState(() {
+            usdRate = currency['Rate'];
+          });
+          // Save the rate to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('usdRate', usdRate);
+          return;
+        }
+      }
+    } else {
+      setState(() {
+        usdRate = 'Failed to fetch rate';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Container(
-      height: double.infinity,
-      width: double.infinity,
-      decoration: BoxDecoration(
-          image: DecorationImage(
-              image: AssetImage("assets/tasbeh3.jpg"), fit: BoxFit.cover)),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              '$_counter',
-              style: TextStyle(
-                  fontSize: 100,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
-            ),
-            SizedBox(height: 40),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: _showResetDialog, // Call dialog function on reset button
-                  child: CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Color.fromARGB(255, 0, 184, 0),
-                    child: CircleAvatar(
-                      radius: 25,
-                      child: Text(
-                        'RESET',
-                        style: TextStyle(color: Colors.green, fontSize: 15),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 50,
-                ),
-                InkWell(
-                  onTap: _incrementCounter,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Color.fromARGB(255, 0, 184, 0),
-                    child: CircleAvatar(
-                      radius: 45,
-                      child: Text(
-                        'COUNT',
-                        style: TextStyle(color: Colors.green, fontSize: 20),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+      appBar: AppBar(
+        title: Text(
+          "kurs: $usdRate UZS",
+          style: TextStyle(
+              fontSize: 30, fontWeight: FontWeight.bold, color: Colors.black),
         ),
       ),
-    ));
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: SingleChildScrollView(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                for (int i = 1; i <= 50; i++) // 50 qatorli archa yasash
+                  Text(
+                   "" * (10 - i) +
+                        'X' * (1 * i - 0), // X dan archa yaratish formulasi
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
